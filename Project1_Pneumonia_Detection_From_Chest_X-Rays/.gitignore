@@ -1,0 +1,3 @@
+# The weight file is too huge (>100MB) 
+# and can't be uploaded to github
+xray_class_my_model.best.hdf5
