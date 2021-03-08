@@ -15,7 +15,7 @@ In this project, you will apply the skills that you have acquired in this 2D med
 
 ### Project 2: Hippocampal Volume Quantification in Alzheimer's Progression
 
-GETTING THERE!
+[Go to Project](./Project2_Hippocampal_Volume_Quantification_in_Alzheimer_Progression)
 
 ### Project 3: Patient Selection for Diabetes Drug Testing
 
