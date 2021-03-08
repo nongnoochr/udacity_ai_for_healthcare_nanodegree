@@ -97,9 +97,8 @@ class UNetExperiment:
             # shape [BATCH_SIZE, 1, PATCH_SIZE, PATCH_SIZE] into variables data and target. 
             # Feed data to the model and feed target to the loss function
             # 
-            # data = <YOUR CODE HERE>
-            # target = <YOUR CODE HERE>
-
+            data = batch['image'].to(self.device)
+            target = batch['seg'].to(self.device)
             prediction = self.model(data)
 
             # We are also getting softmax'd version of prediction to output a probability map
@@ -109,7 +108,8 @@ class UNetExperiment:
             loss = self.loss_function(prediction, target[:, 0, :, :])
 
             # TASK: What does each dimension of variable prediction represent?
-            # ANSWER:
+            # ANSWER: Probablilty of each class (0, 1, or 2) of each pixel
+            # dim-0: Batch index, dim-1: probability, dim-2: y-pixel, dim-3: z-pixel
 
             loss.backward()
             self.optimizer.step()
@@ -133,6 +133,7 @@ class UNetExperiment:
                     counter)
 
             print(".", end='')
+            
 
         print("\nTraining complete")
 
@@ -154,6 +155,14 @@ class UNetExperiment:
                 
                 # TASK: Write validation code that will compute loss on a validation sample
                 # <YOUR CODE HERE>
+                data = batch['image'].to(self.device)
+                target = batch['seg'].to(self.device)
+                prediction = self.model(data)
+
+                # We are also getting softmax'd version of prediction to output a probability map
+                # so that we can see how the model converges to the solution
+                prediction_softmax = F.softmax(prediction, dim=1)
+                loss = self.loss_function(prediction, target[:, 0, :, :])
 
                 print(f"Batch {i}. Data shape {data.shape} Loss {loss}")
 
@@ -255,6 +264,8 @@ class UNetExperiment:
             "mean_dice": np.mean(dc_list),
             "mean_jaccard": np.mean(jc_list)}
 
+        print('Metrics: ')
+        print(out_dict)
         print("\nTesting complete.")
         return out_dict
 

@@ -25,6 +25,7 @@ from PIL import ImageFont
 from PIL import ImageDraw
 
 from inference.UNetInferenceAgent import UNetInferenceAgent
+from utils.utils import med_reshape
 
 def load_dicom_volume_as_numpy_from_list(dcmlist):
     """Loads a list of PyDicom objects a Numpy array.
@@ -63,6 +64,10 @@ def get_predicted_volumes(pred):
     # TASK: Compute the volume of your hippocampal prediction
     # <YOUR CODE HERE>
 
+    volume_ant      = np.sum(pred == 1)
+    volume_post     = np.sum(pred == 2)
+    total_volume    = volume_ant + volume_post
+
     return {"anterior": volume_ant, "posterior": volume_post, "total": total_volume}
 
 def create_report(inference, header, orig_vol, pred_vol):
@@ -99,11 +104,20 @@ def create_report(inference, header, orig_vol, pred_vol):
     # depend on how you present them.
 
     # SAMPLE CODE BELOW: UNCOMMENT AND CUSTOMIZE
-    # draw.text((10, 0), "HippoVolume.AI", (255, 255, 255), font=header_font)
-    # draw.multiline_text((10, 90),
-    #                     f"Patient ID: {header.PatientID}\n"
-    #                       <WHAT OTHER INFORMATION WOULD BE RELEVANT?>
-    #                     (255, 255, 255), font=main_font)
+    draw.text((10, 0), "HippoVolume.AI", (255, 255, 255), font=header_font)
+
+    txt = f"Patient ID: {header.PatientID}\n"  \
+            f"Modality: {header.Modality}\n"  \
+            f"Study Description: {header.StudyDescription}\n"  \
+            f"Series Description: {header.SeriesDescription}\n"  \
+            f"Anterior Volume: {inference['anterior']}\n"  \
+            f"Posterior Volume: {inference['posterior']}\n"  \
+            f"Total Volume: {inference['total']}\n\n" \
+            f"Showing predictions and Axial slices: {slice_nums}"
+
+    draw.multiline_text((10, 90),
+                        txt,
+                        (255, 255, 255), font=main_font)
 
     # STAND-OUT SUGGESTION:
     # In addition to text data in the snippet above, can you show some images?
@@ -113,10 +127,51 @@ def create_report(inference, header, orig_vol, pred_vol):
     # Create a PIL image from array:
     # Numpy array needs to flipped, transposed and normalized to a matrix of values in the range of [0..255]
     # nd_img = np.flip((slice/np.max(slice))*0xff).T.astype(np.uint8)
-    # This is how you create a PIL image from numpy array
-    # pil_i = Image.fromarray(nd_img, mode="L").convert("RGBA").resize(<dimensions>)
-    # Paste the PIL image into our main report image object (pimg)
-    # pimg.paste(pil_i, box=(10, 280))
+#     nd_img = np.flip((orig_vol[0, :, :]/np.max(orig_vol[0, :, :]))*0xff).T.astype(np.uint8)
+#     # This is how you create a PIL image from numpy array
+#     pil_i = Image.fromarray(nd_img, mode="L").convert("RGBA").resize(400, 400)
+#     # Paste the PIL image into our main report image object (pimg)
+#     pimg.paste(pil_i, box=(50, 500))
+
+    PATCH_SIZE = 64
+    orig_vol = med_reshape(orig_vol, (orig_vol.shape[0], PATCH_SIZE, PATCH_SIZE))
+    pred_vol = med_reshape(pred_vol, (pred_vol.shape[0], PATCH_SIZE, PATCH_SIZE))
+    
+    x_position = [0, 310, 620]
+    img_size = (300, 300)
+    
+    for i in range(len(slice_nums)):
+
+        # --- Image
+        # Numpy array needs to flipped, transposed and normalized to a matrix of values in the range of [0..255]    
+        nd_img = np.flip((orig_vol[:, :, slice_nums[i]]/np.max(orig_vol[:, :, slice_nums[i]]))*0xff).T.astype(np.uint8)
+        
+        # This is how you create a PIL image from numpy array
+        pil_i = Image.fromarray(nd_img, mode="L").convert("RGB").resize(img_size)
+        
+        
+        # --- Label
+        # Numpy array needs to flipped, transposed and normalized to a matrix of values in the range of [0..255]    
+        nd_pred = np.flip((pred_vol[:, :, slice_nums[i]]/np.max(pred_vol[:, :, slice_nums[i]]))*0xff).T.astype(np.uint8)
+        slice_p = pred_vol[:, :, slice_nums[i]]
+        
+        # Flatten the label matrix and use it in for the R plane
+        gr_r = list(nd_pred.ravel().astype(np.uint8))    
+        gr_g = list(np.zeros(nd_pred.shape[0] * nd_pred.shape[1]).astype(np.uint8))
+        gr_b = list(np.zeros(nd_pred.shape[0] * nd_pred.shape[1]).astype(np.uint8))
+        
+        # Adding opacity to show the mask value in the R plane
+        alpha = np.zeros(nd_pred.shape[0] * nd_pred.shape[1])
+        alpha[nd_pred.ravel() != 0] = 128
+        alpha = list(alpha.astype(np.uint8))
+        
+        img_p = Image.new("RGBA", slice_p.shape)
+        img_p.putdata(list(zip(gr_r, gr_g, gr_b, alpha)))
+        img_p = img_p.resize(img_size)
+        
+        pil_i.paste(img_p, (0,0), img_p)
+        
+        pimg.paste(pil_i, box=(x_position[i], 300))
 
     return pimg
 
@@ -213,10 +268,11 @@ def get_series_for_inference(path):
         Numpy array representing the series
     """
 
-    # Here we are assuming that path is a directory that contains a full study as a collection
-    # of files
-    # We are reading all files into a list of PyDicom objects so that we can filter them later
-    dicoms = [pydicom.dcmread(os.path.join(path, f)) for f in os.listdir(path)]
+    
+    # # Here we are assuming that path is a directory that contains a full study as a collection
+    # # of files
+    # # We are reading all files into a list of PyDicom objects so that we can filter them later
+    # dicoms = [pydicom.dcmread(os.path.join(path, f)) for f in os.listdir(path)]
 
     # TASK: create a series_for_inference variable that will contain a list of only 
     # those PyDicom objects that represent files that belong to the series that you 
@@ -230,6 +286,15 @@ def get_series_for_inference(path):
     # Hint: inspect the metadata of HippoCrop series
 
     # <YOUR CODE HERE>
+    
+    # Only get studies in a folder with 'HCropVolume' in its name
+    series_path = [dir for dir, subdirs, files in os.walk(path) if 'HCropVolume' in dir]
+    chosen_path = series_path[0]
+
+    series_for_inference = [pydicom.dcmread(os.path.join(chosen_path, f)) for f in os.listdir(chosen_path)]
+    
+    # series_for_inference = [d for d in dicoms if d.SeriesDescription == "HippoCrop"]
+    # print('series_for_inference: ', series_for_inference)
 
     # Check if there are more than one series (using set comprehension).
     if len({f.SeriesInstanceUID for f in series_for_inference}) != 1:
@@ -271,7 +336,7 @@ if __name__ == "__main__":
     # TASK: Use the UNetInferenceAgent class and model parameter file from the previous section
     inference_agent = UNetInferenceAgent(
         device="cpu",
-        parameter_file_path=r"<PATH TO PARAMETER FILE>")
+        parameter_file_path=r"assets/model.pth")
 
     # Run inference
     # TASK: single_volume_inference_unpadded takes a volume of arbitrary size 
@@ -283,7 +348,7 @@ if __name__ == "__main__":
 
     # Create and save the report
     print("Creating and pushing report...")
-    report_save_path = r"<TEMPORARY PATH TO SAVE YOUR REPORT FILE>"
+    report_save_path = '/home/workspace/out/report.dcm'
     # TASK: create_report is not complete. Go and complete it. 
     # STAND OUT SUGGESTION: save_report_as_dcm has some suggestions if you want to expand your
     # knowledge of DICOM format
@@ -293,7 +358,8 @@ if __name__ == "__main__":
     # Send report to our storage archive
     # TASK: Write a command line string that will issue a DICOM C-STORE request to send our report
     # to our Orthanc server (that runs on port 4242 of the local machine), using storescu tool
-    os_command("<COMMAND LINE TO SEND REPORT TO ORTHANC>")
+    cmd = f"sudo storescu localhost 4242 -v -aec HIPPOAI +r +sd {report_save_path}"
+    os_command(cmd)
 
     # This line will remove the study dir if run as root user
     # Sleep to let our StoreSCP server process the report (remember - in our setup

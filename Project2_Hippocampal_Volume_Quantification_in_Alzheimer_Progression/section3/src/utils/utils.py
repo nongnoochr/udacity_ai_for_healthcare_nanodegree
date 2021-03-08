@@ -94,7 +94,7 @@ def med_reshape(image, new_shape):
     """
 
     reshaped_image = np.zeros(new_shape)
-    
+    image = image[:, :new_shape[1], :new_shape[2]]    
     
     # TASK: write your original image into the reshaped image
     # <CODE GOES HERE>

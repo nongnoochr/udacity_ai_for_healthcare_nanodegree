@@ -49,6 +49,12 @@ class SlicesDataset(Dataset):
         # dimension to a Numpy array
         # <YOUR CODE GOES HERE>
 
+        cur_data = self.data[slc[0]]
+
+        sample['image'] = torch.from_numpy(cur_data['image'][slc[1], :, :]).type(torch.cuda.FloatTensor).unsqueeze(0)
+        sample['seg'] = torch.from_numpy(cur_data['seg'][slc[1]]).type(torch.cuda.LongTensor).unsqueeze(0)
+
+    
         return sample
 
     def __len__(self):

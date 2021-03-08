@@ -32,6 +32,8 @@ def LoadHippocampusData(root_dir, y_shape, z_shape):
     out = []
     for f in images:
 
+        # print('filename: ', f)
+
         # We would benefit from mmap load method here if dataset doesn't fit into memory
         # Images are loaded here using MedPy's load method. We will ignore header 
         # since we will not use it
@@ -39,7 +41,9 @@ def LoadHippocampusData(root_dir, y_shape, z_shape):
         label, _ = load(os.path.join(label_dir, f))
 
         # TASK: normalize all images (but not labels) so that values are in [0..1] range
-        # <YOUR CODE GOES HERE>
+        # image = image / 255
+        image = image.astype(np.single) / 0xff
+        
 
         # We need to reshape data since CNN tensors that represent minibatches
         # in our case will be stacks of slices and stacks need to be of the same size.
@@ -53,7 +57,9 @@ def LoadHippocampusData(root_dir, y_shape, z_shape):
         label = med_reshape(label, new_shape=(label.shape[0], y_shape, z_shape)).astype(int)
 
         # TASK: Why do we need to cast label to int?
-        # ANSWER: 
+        # ANSWER: Because the label data is a mask value which can be one of the followings: 0, 1, 2
+        # These values can be represented with an interger type which requires less memory
+        
 
         out.append({"image": image, "seg": label, "filename": f})
 
