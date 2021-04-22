@@ -24,8 +24,9 @@ In this project, you will apply the skills that you have acquired in this 2D med
 [Go to Project](./Project3_Patient_Selection_for_Diabetes_Drug_Testing_Project)
 
 ### Project 4: Motion Compensated Pulse Rate Estimation
+*Skills: Applying AI to Wearable Device Data*
 
-GETTING THERE!
+[Go to Project](./Project4_Motion-Compensated-Pulse-Rate-Estimation)
 
 <hr / >
 
